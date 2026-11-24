@@ -18,12 +18,14 @@ Powered by a hybrid **1D-CNN + Bidirectional LSTM (BiLSTM)** neural network, the
 1. [Executive Summary & Key Results](#-executive-summary--key-results)
 2. [Dataset Provenance & Real vs. Simulated Flight Breakdown](#-dataset-provenance--real-vs-simulated-flight-breakdown)
 3. [The Raw ULog Challenge & Multi-Rate Synchronization](#-the-raw-ulog-challenge--multi-rate-synchronization)
-4. [Neural Network Architecture & Training Pipeline](#-neural-network-architecture--training-pipeline)
-5. [Evaluation Points & Academic Metrics](#-evaluation-points--academic-metrics)
-6. [Continuous Flight Stream Verification (Pure DL, 0 Rules)](#-continuous-flight-stream-verification-pure-dl-0-rules)
-7. [Repository Structure](#-repository-structure)
-8. [Quickstart & Reproduction Guide](#-quickstart--reproduction-guide)
-9. [Author & Citation](#-author--citation)
+4. [Why Deep Learning Over Traditional Machine Learning?](#-why-deep-learning-over-traditional-machine-learning)
+5. [Neural Network Architecture & Training Pipeline](#-neural-network-architecture--training-pipeline)
+6. [Evaluation Points & Academic Metrics](#-evaluation-points--academic-metrics)
+7. [Continuous Flight Stream Verification (Pure DL, 0 Rules)](#-continuous-flight-stream-verification-pure-dl-0-rules)
+8. [Real-World Operational Deployment & Fail-Safe Architecture](#-real-world-operational-deployment--fail-safe-architecture)
+9. [Repository Structure](#-repository-structure)
+10. [Quickstart & Reproduction Guide](#-quickstart--reproduction-guide)
+11. [Author & Citation](#-author--citation)
 
 ---
 
@@ -100,6 +102,38 @@ flowchart LR
     E --> F["StandardScaler\n(Scaled to [-5, 5])"]
     F --> G["1D-CNN + BiLSTM\nModel Input"]
 ```
+
+---
+
+## 🔬 Why Deep Learning Over Traditional Machine Learning?
+
+In early research stages, many intrusion detection systems rely on traditional Machine Learning algorithms (such as Random Forest, Support Vector Machines (SVM), k-Nearest Neighbors, or XGBoost). However, when evaluated on high-frequency avionics and physical cyber-attacks, traditional ML exhibits structural limitations that only Deep Learning can resolve:
+
+```
+Traditional ML:  Raw Telemetry ──> [ Manual Feature Engineering ] ──> Static Row Classifier ──> High False Alarms
+Deep Learning:   Raw Telemetry ─────────────────> [ 1D-CNN + BiLSTM (Automatic Features + Temporal Memory) ] ──> 99.92% Accuracy
+```
+
+### 1. Manual Feature Engineering vs. End-to-End Representation Learning
+- **The Traditional ML Bottleneck:** Algorithms like Random Forest cannot directly interpret raw sensor coupling. A human engineer must handcraft features (e.g. rolling averages, moving standard deviations, numerical velocity differentials, frequency-domain FFTs). If the engineer's heuristic formula fails to anticipate an attacker's strategy, the model fails.
+- **The Deep Learning Advantage:** 1D Convolutional layers act as automated spatial feature extractors, learning optimal cross-sensor correlation kernels across all 72 physical channels directly from data.
+
+### 2. Static Row Isolation vs. Temporal Sequential Memory
+- **The Stealth Spoofing Challenge:** An adversary transmitting from a HackRF One does not abruptly jump the drone's position by kilometers (which any trivial check would reject). Instead, they inject a slow, creeping drift of $0.2 - 0.3\text{ m/s}$. In any single isolated time-step, all sensor readings lie well within normal flight envelopes.
+- **Why Traditional ML Fails:** Random Forest and SVM evaluate each time-step in isolation, blind to preceding flight momentum.
+- **Why BiLSTM Succeeds:** Our 2-layer Bidirectional LSTM maintains internal recurrent memory states over sequential epochs ($t_{-k} \dots t_0$). It detects the subtle phase lag between commanded motor thrust, integrated inertial acceleration, and anomalous GPS velocity drift over time.
+
+### 3. Resilience to Aerodynamic Disturbances (Zero False Alarms)
+- In real-world flight, atmospheric wind gusts cause sudden accelerations. Traditional threshold-based ML models frequently mistake turbulence for cyber-attacks (triggering false alarms).
+- Deep Learning learns the multi-variable physical invariant: during wind gusts, aerodynamic forces cause corresponding attitude deflections ($q_0 \dots q_3$) and gyroscope angular rates ($\omega_x, \omega_y$). Because our model monitors all 72 coupled physical variables simultaneously, it achieved **zero false alarms across 4.10 minutes of active flight maneuvers**.
+
+| Architectural Dimension | Traditional Machine Learning (RF / SVM) | Deep Learning (1D-CNN + BiLSTM) |
+| :--- | :--- | :--- |
+| **Feature Extraction** | Manual, handcrafted by human engineers | **End-to-end automatic feature learning** |
+| **Temporal Context** | Weak / None (evaluates isolated rows) | **Strong recurrent memory (captures sequential flight history)** |
+| **Stealth Drift Detection** | Struggles with slow-creeping velocity spoofing | **Detects subtle micro-drift through temporal phase lag** |
+| **Cross-Sensor Coupling** | Requires explicit cross-channel differential features | **1D-CNN captures multi-sensor physical coupling natively** |
+| **Performance with Scale** | Plateaus rapidly as flight volume grows | **Scales continuously with complex flight dynamics** |
 
 ---
 
@@ -240,6 +274,59 @@ To verify real-world operational reliability, the trained model was evaluated as
 > [!TIP]
 > **Why Zero False Alarms on Benign Flights Matters:**
 > In military and commercial aviation, a detector that raises false alarms during sharp turns or gusty winds causes pilots or autopilots to needlessly ditch valid GPS navigation. Our model achieved **0 false alarms across 4,919 continuous epochs (4.10 minutes) of active flight maneuvers**.
+
+---
+
+## 🛸 Real-World Operational Deployment & Fail-Safe Architecture
+
+In a live operational deployment on an autonomous quadcopter, the system operates as an **onboard cyber-physical watchdog** running across a distributed two-tier avionics architecture:
+
+```
+┌──────────────────────────────────────────────┐                         ┌──────────────────────────────────────────────┐
+│        Flight Controller (Pixhawk 4)         │      High-Speed UART    │         Companion Computer (Onboard)         │
+│  - STM32 Microcontroller                     │   (MAVLink / MicroDDS)  │  - Raspberry Pi 5 / NVIDIA Jetson Orin Nano  │
+│  - Motor Control & Rate PID Loops (250 Hz)   │ ──────────────────────> │  - 1D-CNN + BiLSTM Cyber-Intrusion Detector  │
+│  - EKF2 Sensor Fusion (IMU, GPS, Mag, Baro)  │ <────────────────────── │  - Inference Latency: 0.0255 ms per packet   │
+└──────────────────────────────────────────────┘   Autonomous Failsafe   └──────────────────────────────────────────────┘
+                                                        Commands
+```
+
+### 1. Real-Time Detection Loop (20 Hz / 50 ms Epochs)
+1. **Telemetry Streaming:** The Pixhawk streams high-frequency uORB/MAVLink telemetry packets (`HIGHRES_IMU`, `ATTITUDE`, `LOCAL_POSITION_NED`, `GPS_RAW_INT`) to the companion computer.
+2. **Ring Buffer Snapping:** An onboard circular buffer snaps incoming sensor streams onto the 20 Hz (50 ms) grid.
+3. **Ultra-Low Latency Inference:** The 72 physical features are normalized and processed by the neural network in just **0.0255 ms (25.5 microseconds)**. This consumes **less than 0.1% CPU budget**, leaving the companion computer entirely free for computer vision, SLAM, or mission management.
+4. **Hysteresis Debouncing:** To eliminate transient sensor glitches, an intrusion is formally confirmed when the network outputs $P(\text{Attack}) > 85\%$ for **3 consecutive epochs (150 ms)**.
+
+### 2. Autonomous Fail-Safe Mitigation Protocol
+
+Once an intrusion is confirmed, the system executes a 4-stage autonomous defense protocol without requiring pilot intervention:
+
+```mermaid
+flowchart TD
+    A["DL Watchdog Confirms Intrusion\n(Confidence > 85%, 3 Consecutive Epochs)"] --> B["Stage 1: Zero-Trust GPS Quarantine\n(Instantly Drop GPS Fusion in EKF2)"]
+    B --> C["Stage 2: Switch to Inertial Dead Reckoning\n(Hold Station via IMU + Baro + Optical Flow)"]
+    C --> D{"Attack Persists\n> 10 Seconds?"}
+    D -- Yes --> E["Stage 3: Autonomous Emergency Landing\n(Controlled Vertical Descent to Prevent Flyaway)"]
+    D -- No --> F["Stage 3: Non-GPS Return-to-Home\n(Reverse Dead-Reckoning Path to Takeoff)"]
+    A --> G["Stage 4: Ground Control Station Alert\n(Broadcast Emergency MAVLink Warning to QGC)"]
+```
+
+1. **Stage 1 — Zero-Trust GPS Quarantine:**
+   The companion computer instantly dispatches a parameter command to the autopilot:
+   $$\text{PARAM\_SET: EKF2\_AID\_MASK} \rightarrow \text{Disable GPS Fusion}$$
+   The autopilot immediately stops blending the spoofed GPS signal into its position state estimate, neutralizing the attacker's control vector.
+2. **Stage 2 — Switch to Inertial Dead Reckoning / Optical Flow:**
+   The drone switches navigation to non-satellite dead reckoning, maintaining position hold using high-rate IMU integration, barometric altitude dampening, and downward optical flow / visual odometry.
+3. **Stage 3 — Autonomous Failsafe Maneuver:**
+   - **Station Loiter:** Holds current altitude and position while assessing RF signal recovery.
+   - **Non-GPS Return-to-Launch (RTL):** If compass and inertial vectors remain stable, reverses the trajectory back toward the takeoff point.
+   - **Emergency Controlled Landing:** If jamming persists and inertial drift accumulates beyond safety limits, executes an immediate vertical descent to land safely before flyaway occurs.
+4. **Stage 4 — Ground Control Station (GCS) Alert:**
+   An emergency warning is transmitted to QGroundControl via MAVLink `STATUSTEXT`:
+   ```text
+   [ALERT] GPS SPOOFING ATTACK DETECTED (CONFIDENCE: 99.8%)
+   ACTION: GPS Quarantined. Autopilot switched to Inertial Navigation.
+   ```
 
 ---
 
