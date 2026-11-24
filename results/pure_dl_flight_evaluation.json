@@ -1,0 +1,24 @@
+{
+    "evaluation_mode": "Pure Deep Learning (No Rule-Based Physics)",
+    "architecture": "1D-CNN + BiLSTM (72 physical telemetry channels)",
+    "hardware": "mps",
+    "spoofing_flight": {
+        "accuracy": 0.998894620486367,
+        "precision": 0.9921671018276762,
+        "recall": 1.0,
+        "f1": 0.9960681520314548,
+        "latency_ms": 0.11523704237288131
+    },
+    "jamming_flight": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "latency_ms": 0.031602564177757926
+    },
+    "benign_flight": {
+        "accuracy": 1.0,
+        "total_epochs": 4915,
+        "false_alarms": 0
+    }
+}

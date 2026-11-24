@@ -1,0 +1,18 @@
+{
+    "source": "raw_binary_ulog",
+    "accuracy": 0.9991714995857498,
+    "precision": 0.9963768115942029,
+    "recall": 0.9963768115942029,
+    "f1_score": 0.9963768115942029,
+    "specificity": 0.999532273152479,
+    "false_alarm_rate": 0.0004677268475210477,
+    "auc_roc": 0.9999932213500359,
+    "avg_latency_ms": 0.025522913763451498,
+    "confusion_matrix": {
+        "tp": 275,
+        "tn": 2137,
+        "fp": 1,
+        "fn": 1
+    },
+    "test_samples": 2414
+}
