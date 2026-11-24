@@ -181,9 +181,9 @@ The model leverages a hybrid spatio-temporal deep neural network designed to cap
   - *Test Split:* 2,139 Benign (88.6%) | 275 Attack (11.4%)
 - **Data Normalization:** `StandardScaler` fitted **strictly on the training split** and applied to the holdout test set. Input activations clipped to $[-5.0, 5.0]$ for numerical stability.
 - **Loss Function:** Weighted Binary Cross-Entropy with Logits (`BCEWithLogitsLoss`):
-  $$\text{pos\_weight} = \frac{N_{\text{benign}}}{N_{\text{attack}}} \approx 7.74$$
+  $$w_{\text{pos}} = \frac{N_{\text{benign}}}{N_{\text{attack}}} \approx 7.74$$
   *(Prevents majority class bias due to natural 88.6% benign class skew).*
-- **Optimizer:** `AdamW` ($\text{lr} = 1.0 \times 10^{-3}$, $\text{weight\_decay} = 1.0 \times 10^{-4}$).
+- **Optimizer:** `AdamW` (learning rate $\alpha = 10^{-3}$, weight decay $\lambda = 10^{-4}$).
 - **Batch Size:** 64
 - **Epochs:** 25 with Early Stopping (Patience = 5 on validation loss).
 - **Hardware Acceleration:** Native Apple Silicon Metal Performance Shaders (`mps` GPU) with automatic fallback to CUDA / CPU.
@@ -313,7 +313,8 @@ flowchart TD
 
 1. **Stage 1 — Zero-Trust GPS Quarantine:**
    The companion computer instantly dispatches a parameter command to the autopilot:
-   $$\text{PARAM\_SET: EKF2\_AID\_MASK} \rightarrow \text{Disable GPS Fusion}$$
+   > **`PARAM_SET: EKF2_AID_MASK = 0`** $\rightarrow$ **Disable GPS Fusion**
+
    The autopilot immediately stops blending the spoofed GPS signal into its position state estimate, neutralizing the attacker's control vector.
 2. **Stage 2 — Switch to Inertial Dead Reckoning / Optical Flow:**
    The drone switches navigation to non-satellite dead reckoning, maintaining position hold using high-rate IMU integration, barometric altitude dampening, and downward optical flow / visual odometry.
