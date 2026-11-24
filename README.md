@@ -417,12 +417,26 @@ python src/train_dl_from_raw_ulog.py
 
 ---
 
-## 👨‍💻 Author & Citation
+## 👨‍💻 Author & Dataset Attribution
 
-**Rohan Rathee**  
-*Undergraduate Engineering Student • Autonomous Systems & Cyber-Physical Defense*
+- **Developer & Author:** **Rohan Rathee**  
+  *Undergraduate Engineering Student • Autonomous Systems & Cyber-Physical Defense*
 
-If you find this work or pipeline helpful for your research, please star the repository! ⭐
+- **Dataset Attribution:**  
+  This project utilizes telemetry flight logs from the publicly available **UAV Attack Dataset** (hosted on IEEE DataPort by researchers at Ontario Tech University: J. Whelan et al.). We gratefully acknowledge the dataset creators for conducting the physical drone flight experiments and making the research data accessible to the community.
 
 ---
-*Built with PyTorch, pyulog, and PX4 Autopilot.*
+
+## 📜 License & Usage Terms
+
+This project is open-source and licensed under the terms of the **MIT License with Attribution**.
+
+Anyone is free to use, study, modify, and distribute this codebase for academic, research, or commercial purposes, provided that:
+1. **Author Credit:** Attribution is preserved and credited to **Rohan Rathee**.
+2. **Dataset Credit:** Appropriate citation and credit are given to the original dataset authors (**IEEE DataPort UAV Attack Dataset**).
+
+See the [LICENSE](LICENSE) file for the complete legal text.
+
+---
+*Developed with PyTorch, pyulog, and PX4 Autopilot.*
+
