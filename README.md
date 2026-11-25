@@ -334,7 +334,7 @@ flowchart TD
 ## 📂 Repository Structure
 
 ```
-Drone Sim/
+aero-ids/
 ├── models/
 │   ├── uav_dl_pure_model.pt          # Production PyTorch weights (1D-CNN + BiLSTM)
 │   ├── uav_dl_raw_ulog_detector.pt   # Checkpoint trained directly on raw .ulg
@@ -370,8 +370,8 @@ Drone Sim/
 ### 1. Clone & Set Up Python Environment
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/drone-cyber-defense-dl.git
-cd drone-cyber-defense-dl
+git clone https://github.com/therohanrathee/aero-ids.git
+cd aero-ids
 
 # Create and activate virtual environment
 python3 -m venv venv
